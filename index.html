@@ -107,6 +107,11 @@
       <input id="adminLessonDate" type="date" />
       <textarea id="adminLessonText" placeholder="Lesson text"></textarea>
       <button id="addLessonBtn">Add Lesson</button>
+
+      <h3 id="admSetup" style="margin-top:12px">Admin Setup</h3>
+      <div class="small" id="admSetupNote" style="margin-bottom:6px"></div>
+      <input id="newAdminCode" inputmode="numeric" placeholder="New 6-digit passcode" />
+      <button id="setAdminCodeBtn">Set Passcode</button>
     </div>
   </section>
 
@@ -200,6 +205,9 @@ const dict = {
     emptyEvents:"No events yet.", emptyGallery:"No photos yet.", emptyLessons:"No lessons yet.",
     adminTitle:"Admin Panel", adminNote:"Admin tools are locked until you verify the admin passcode.",
     admAddEvent:"Add Event", admAddLesson:"Add Lesson",
+    admSetup:"Admin Setup", admSetupNote:"Change the admin passcode (you'll need it next time you log in).", newCode:"New 6-digit passcode", setPasscode:"Set Passcode", passcodeUpdated:"Admin passcode updated.",
+    weakCode:"Passcode must be 6+ digits.",
+    
     admVerifyTitle:"Admin Verification",
     admVerifyTip:"Enter the admin passcode to unlock admin tools.",
     admCodeLabel:"Admin passcode",
@@ -220,6 +228,9 @@ const dict = {
     emptyEvents:"Todavía no hay eventos.", emptyGallery:"Todavía no hay fotos.", emptyLessons:"Todavía no hay lecciones.",
     adminTitle:"Panel de Admin", adminNote:"Las herramientas de admin se desbloquean solo con el passcode.",
     admAddEvent:"Agregar evento", admAddLesson:"Agregar lección",
+    admSetup:"Configurar admin", admSetupNote:"Cambia el passcode de admin (lo necesitarás la próxima vez).", newCode:"Nuevo passcode (6 dígitos)", setPasscode:"Guardar passcode", passcodeUpdated:"Passcode de admin actualizado.",
+    weakCode:"El passcode debe tener 6+ dígitos.",
+    
     admVerifyTitle:"Verificación de Admin",
     admVerifyTip:"Escribe el passcode de admin para desbloquear.",
     admCodeLabel:"Passcode de admin",
@@ -282,6 +293,10 @@ function applyLang(){
   document.getElementById("adminNote").textContent=t("adminNote");
   document.getElementById("admAddEvent").textContent=t("admAddEvent");
   document.getElementById("admAddLesson").textContent=t("admAddLesson");
+  document.getElementById("admSetup").textContent=t("admSetup");
+  document.getElementById("admSetupNote").textContent=t("admSetupNote");
+  document.getElementById("newAdminCode").placeholder=t("newCode");
+  document.getElementById("setAdminCodeBtn").textContent=t("setPasscode");
 
   document.getElementById("admVerifyTitle").textContent=t("admVerifyTitle");
   document.getElementById("admVerifyTip").textContent=t("admVerifyTip");
@@ -530,6 +545,8 @@ document.getElementById("reloadLessonsBtn").onclick=loadLessons;
 document.getElementById("addEventBtn").onclick=addEvent;
 document.getElementById("addLessonBtn").onclick=addLesson;
 
+document.getElementById("setAdminCodeBtn").onclick=setAdminCode;
+
 async function addEvent(){
   if(!isAdminUnlocked()) return toast(t("admVerifyTip"), true);
   const date=document.getElementById("adminEventDate").value;
@@ -549,6 +566,17 @@ async function addLesson(){
   try{
     const j=await api("addLesson",{title,date,text,adminEmail:user.email,adminToken:user.adminToken});
     if(j.ok){ document.getElementById("adminLessonTitle").value=""; document.getElementById("adminLessonText").value=""; loadLessons(); toast("OK"); }
+    else toast(String(j.error||"error"),true);
+  }catch{ toast(t("netErr"),true); }
+}
+
+async function setAdminCode(){
+  if(!isAdminUnlocked()) return toast(t("admVerifyTip"), true);
+  const code=String(document.getElementById("newAdminCode").value||"").trim();
+  if(code.length<6) return toast(t("weakCode"), true);
+  try{
+    const j=await api("setAdminCode",{code,adminEmail:user.email,adminToken:user.adminToken});
+    if(j.ok){ document.getElementById("newAdminCode").value=""; toast(t("passcodeUpdated")); }
     else toast(String(j.error||"error"),true);
   }catch{ toast(t("netErr"),true); }
 }
