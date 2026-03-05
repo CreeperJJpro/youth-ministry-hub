@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Youth Ministry Hub</title>
+<style>
+  body{font-family:system-ui,Arial;margin:0;background:#0f172a;color:#fff}
+  header{background:#111827;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  nav a{color:#fff;margin:0 8px;text-decoration:none;font-size:14px;opacity:.9}
+  nav a:hover{opacity:1}
+  .container{max-width:1000px;margin:auto;padding:20px}
+  .card{background:#1f2937;padding:18px;border-radius:10px;margin-bottom:20px}
+  button,input,select,textarea{padding:8px;border-radius:6px;border:none;margin:4px 0}
+  button{cursor:pointer}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .gallery img{width:100%;border-radius:8px;background:#111827}
+  .hidden{display:none}
+  .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .day{background:#111827;padding:10px;border-radius:6px;font-size:12px;min-height:60px}
+  .small{font-size:12px;color:#9ca3af}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;background:#111827;border:1px solid #334155;padding:10px 12px;border-radius:10px;max-width:min(620px,calc(100% - 24px));display:none}
+  .toast.err{border-color:#ef4444}
+</style>
+</head>
+<body>
+<header>
+  <div id="brand">Youth Ministry Hub</div>
+  <div class="row">
+    <select id="lang" aria-label="Language">
+      <option value="en">EN</option>
+      <option value="es">ES</option>
+    </select>
+    <button id="loginBtn">Login</button>
+    <button id="logoutBtn" class="hidden">Logout</button>
+  </div>
+</header>
+
+<nav class="container" aria-label="Primary">
+  <a id="navHome" href="#home">Home</a>
+  <a id="navCalendar" href="#calendar">Calendar</a>
+  <a id="navGallery" href="#gallery">Gallery</a>
+  <a id="navLessons" href="#lessons">Lessons</a>
+</nav>
+
+<div class="container">
+
+  <section id="home" class="view">
+    <div class="card">
+      <h2 id="verseTitle">Daily Bible Verse</h2>
+      <p id="verse" class="small"></p>
+      <div class="row">
+        <button id="verseRefreshBtn">Refresh</button>
+        <span id="verseStamp" class="small"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="upcomingTitle" style="margin:0">Upcoming Events</h2>
+        <button id="reloadEventsBtn" class="small">Reload</button>
+      </div>
+      <div id="nextEvents"></div>
+    </div>
+  </section>
+
+  <section id="calendar" class="view hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="calTitle" style="margin:0">Events Calendar</h2>
+        <button id="reloadCalendarBtn" class="small">Reload</button>
+      </div>
+      <div id="calendarGrid" class="calendar"></div>
+      <div class="small" id="calHint" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <section id="gallery" class="view hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="galTitle" style="margin:0">Gallery</h2>
+        <button id="reloadGalleryBtn" class="small">Reload</button>
+      </div>
+      <div id="galleryGrid" class="gallery"></div>
+    </div>
+  </section>
+
+  <section id="lessons" class="view hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h2 id="lesTitle" style="margin:0">Sunday Lessons</h2>
+        <button id="reloadLessonsBtn" class="small">Reload</button>
+      </div>
+      <input id="lessonSearch" placeholder="Search lessons" />
+      <div id="lessonList"></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- AUTH MODAL -->
+<div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center">
+  <div style="background:#1f2937;padding:20px;border-radius:10px;width:320px">
+    <h3 id="authTitle" style="margin:0 0 10px">Account</h3>
+    <label class="small" id="emailLabel" for="email">Email</label>
+    <input id="email" placeholder="Email" autocomplete="email" />
+    <label class="small" id="passLabel" for="password">Password</label>
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+    <div class="row" style="margin-top:10px">
+      <button id="doLoginBtn">Login</button>
+      <button id="doSignupBtn">Sign Up</button>
+      <button id="closeAuthBtn">Close</button>
+    </div>
+    <div class="small" id="authNote" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbztVO4XjrOl0nXFCa-ZoJuC6W2tLHC1_iVIT8y4TIjCbo2iapCbn0zihHINJu3ItwQS/exec";
+let user = null;
+
+// In-memory caches (prevents constant network prompts / re-fetch)
+let cacheEvents = [];
+let cacheGallery = [];
+let cacheLessons = [];
+
+const dict = {
+  en: {
+    brand: "Youth Ministry Hub",
+    navHome: "Home",
+    navCalendar: "Calendar",
+    navGallery: "Gallery",
+    navLessons: "Lessons",
+    verseTitle: "Daily Bible Verse",
+    refresh: "Refresh",
+    updated: "Updated:",
+    upcomingTitle: "Upcoming Events",
+    calTitle: "Events Calendar",
+    galTitle: "Gallery",
+    lesTitle: "Sunday Lessons",
+    reload: "Reload",
+    searchLessons: "Search lessons",
+    authTitle: "Account",
+    email: "Email",
+    password: "Password",
+    login: "Login",
+    signup: "Sign Up",
+    close: "Close",
+    logout: "Logout",
+    accountCreated: "Account created",
+    badLogin: "Incorrect email or password",
+    netErr: "Network error. If you opened this file directly, try hosting it (GitHub Pages) so the browser stops re-asking.",
+    emptyEvents: "No events yet.",
+    emptyGallery: "No photos yet.",
+    emptyLessons: "No lessons yet.",
+    calHint: "Calendar shows event titles on their day (simple month view).",
+    authNote: "Your email is used for account recovery."
+  },
+  es: {
+    brand: "Centro de Jóvenes",
+    navHome: "Inicio",
+    navCalendar: "Calendario",
+    navGallery: "Galería",
+    navLessons: "Lecciones",
+    verseTitle: "Versículo del día",
+    refresh: "Refrescar",
+    updated: "Actualizado:",
+    upcomingTitle: "Próximos eventos",
+    calTitle: "Calendario de eventos",
+    galTitle: "Galería",
+    lesTitle: "Lecciones (Domingo)",
+    reload: "Recargar",
+    searchLessons: "Buscar lecciones",
+    authTitle: "Cuenta",
+    email: "Email",
+    password: "Contraseña",
+    login: "Entrar",
+    signup: "Crear",
+    close: "Cerrar",
+    logout: "Salir",
+    accountCreated: "Cuenta creada",
+    badLogin: "Email o contraseña incorrectos",
+    netErr: "Error de red. Si abriste este archivo directo, súbelo a un host (GitHub Pages) para que el navegador no siga preguntando.",
+    emptyEvents: "Todavía no hay eventos.",
+    emptyGallery: "Todavía no hay fotos.",
+    emptyLessons: "Todavía no hay lecciones.",
+    calHint: "El calendario muestra títulos en su día (vista mensual simple).",
+    authNote: "Tu email se usa para recuperación de cuenta."
+  }
+};
+
+function lang(){ return localStorage.lang || "en"; }
+function t(k){ return (dict[lang()] && dict[lang()][k]) || (dict.en[k]||k); }
+
+function toast(msg, err=false){
+  const el = document.getElementById("toast");
+  el.classList.toggle("err", !!err);
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>{ el.style.display="none"; }, 3200);
+}
+
+function applyLang(){
+  document.documentElement.lang = lang();
+  document.getElementById("brand").textContent = t("brand");
+  document.getElementById("navHome").textContent = t("navHome");
+  document.getElementById("navCalendar").textContent = t("navCalendar");
+  document.getElementById("navGallery").textContent = t("navGallery");
+  document.getElementById("navLessons").textContent = t("navLessons");
+
+  document.getElementById("verseTitle").textContent = t("verseTitle");
+  document.getElementById("verseRefreshBtn").textContent = t("refresh");
+
+  document.getElementById("upcomingTitle").textContent = t("upcomingTitle");
+  document.getElementById("calTitle").textContent = t("calTitle");
+  document.getElementById("galTitle").textContent = t("galTitle");
+  document.getElementById("lesTitle").textContent = t("lesTitle");
+
+  document.getElementById("reloadEventsBtn").textContent = t("reload");
+  document.getElementById("reloadCalendarBtn").textContent = t("reload");
+  document.getElementById("reloadGalleryBtn").textContent = t("reload");
+  document.getElementById("reloadLessonsBtn").textContent = t("reload");
+
+  document.getElementById("lessonSearch").placeholder = t("searchLessons");
+
+  document.getElementById("authTitle").textContent = t("authTitle");
+  document.getElementById("emailLabel").textContent = t("email");
+  document.getElementById("email").placeholder = t("email");
+  document.getElementById("passLabel").textContent = t("password");
+  document.getElementById("password").placeholder = t("password");
+  document.getElementById("doLoginBtn").textContent = t("login");
+  document.getElementById("doSignupBtn").textContent = t("signup");
+  document.getElementById("closeAuthBtn").textContent = t("close");
+  document.getElementById("loginBtn").textContent = t("login");
+  document.getElementById("logoutBtn").textContent = t("logout");
+  document.getElementById("authNote").textContent = t("authNote");
+  document.getElementById("calHint").textContent = t("calHint");
+
+  // re-render lists in current language (strings)
+  renderEvents(cacheEvents);
+  renderGallery(cacheGallery);
+  renderLessons(cacheLessons);
+}
+
+// language selector
+const langSel = document.getElementById("lang");
+langSel.value = lang();
+langSel.onchange = ()=>{ localStorage.lang = langSel.value; applyLang(); };
+
+// router
+function show(){
+  document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
+  const id = location.hash.replace("#","") || "home";
+  const el = document.getElementById(id);
+  if(el) el.classList.remove("hidden");
+}
+window.addEventListener("hashchange", show);
+show();
+
+// Fetch helper (Apps Script likes text/plain JSON)
+async function api(action, payload={}){
+  const body = JSON.stringify({action, ...payload});
+  const r = await fetch(API, {
+    method: "POST",
+    headers: {"Content-Type":"text/plain;charset=utf-8"},
+    body,
+    mode: "cors",
+    redirect: "follow",
+    cache: "no-store"
+  });
+  const j = await r.json();
+  return j;
+}
+
+// DAILY VERSE (cached once per day, no constant network prompts)
+function todayKey(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+async function loadVerse(force=false){
+  const key = "verse:"+todayKey();
+  if(!force && localStorage.getItem(key)){
+    const v = JSON.parse(localStorage.getItem(key));
+    renderVerse(v);
+    return;
+  }
+  try{
+    const r = await fetch("https://beta.ourmanna.com/api/v1/get/?format=json", {cache:"no-store"});
+    const j = await r.json();
+    const v = { text: j.verse.details.text, ref: j.verse.details.reference, ts: new Date().toISOString() };
+    localStorage.setItem(key, JSON.stringify(v));
+    renderVerse(v);
+  }catch{
+    document.getElementById("verse").innerText = (lang()==="es")?"Error al cargar el versículo":"Error loading verse";
+  }
+}
+
+function renderVerse(v){
+  document.getElementById("verse").innerText = v.text + " — " + v.ref;
+  const d = new Date(v.ts);
+  document.getElementById("verseStamp").innerText = t("updated")+" "+d.toLocaleString();
+}
+
+document.getElementById("verseRefreshBtn").onclick = ()=> loadVerse(true);
+
+// AUTH
+const modal = document.getElementById("authModal");
+
+document.getElementById("loginBtn").onclick = ()=> modal.classList.remove("hidden");
+document.getElementById("closeAuthBtn").onclick = ()=> modal.classList.add("hidden");
+
+document.getElementById("logoutBtn").onclick = ()=>{
+  user=null;
+  localStorage.removeItem("user");
+  updateAuth();
+};
+
+function updateAuth(){
+  const logged = !!user;
+  document.getElementById("loginBtn").classList.toggle("hidden", logged);
+  document.getElementById("logoutBtn").classList.toggle("hidden", !logged);
+}
+
+document.getElementById("doLoginBtn").onclick = login;
+document.getElementById("doSignupBtn").onclick = signup;
+
+async function login(){
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+  try{
+    const j = await api("login", {email, pass});
+    if(j.ok){
+      user = j.user;
+      localStorage.user = JSON.stringify(user);
+      updateAuth();
+      modal.classList.add("hidden");
+    }else{
+      toast(t("badLogin"), true);
+    }
+  }catch{
+    toast(t("netErr"), true);
+  }
+}
+
+async function signup(){
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+  try{
+    const j = await api("signup", {email, pass});
+    if(j.ok){ toast(t("accountCreated")); }
+    else{ toast(String(j.error||"error"), true); }
+  }catch{
+    toast(t("netErr"), true);
+  }
+}
+
+if(localStorage.user){ try{ user = JSON.parse(localStorage.user); }catch{} }
+updateAuth();
+
+// EVENTS
+async function loadEvents(){
+  try{
+    const j = await api("events");
+    cacheEvents = (j.events||[]);
+    renderEvents(cacheEvents);
+  }catch{ toast(t("netErr"), true); }
+}
+
+function renderEvents(events){
+  const next = document.getElementById("nextEvents");
+  next.innerHTML = "";
+  if(!events || !events.length){ next.innerHTML = `<div class="small">${t("emptyEvents")}</div>`; return; }
+
+  events.slice(0,5).forEach(e=>{
+    const div = document.createElement("div");
+    div.className = "small";
+    div.textContent = e.date + " - " + e.title;
+    next.appendChild(div);
+  });
+  renderCalendar(events);
+}
+
+function renderCalendar(events){
+  const cal = document.getElementById("calendarGrid");
+  cal.innerHTML = "";
+  // Simple month view: 1..31 (keeps code small)
+  for(let i=1;i<=31;i++){
+    const d = document.createElement("div");
+    d.className = "day";
+    d.textContent = i;
+    (events||[]).filter(e=>{
+      const dt = new Date(e.date);
+      return !isNaN(dt) && dt.getDate()===i;
+    }).forEach(e=>{
+      const s = document.createElement("div");
+      s.className = "small";
+      s.textContent = e.title;
+      d.appendChild(s);
+    });
+    cal.appendChild(d);
+  }
+}
+
+document.getElementById("reloadEventsBtn").onclick = loadEvents;
+document.getElementById("reloadCalendarBtn").onclick = loadEvents;
+
+// GALLERY
+async function loadGallery(){
+  try{
+    const j = await api("gallery");
+    cacheGallery = (j.photos||[]);
+    renderGallery(cacheGallery);
+  }catch{ toast(t("netErr"), true); }
+}
+
+function renderGallery(photos){
+  const g = document.getElementById("galleryGrid");
+  g.innerHTML = "";
+  if(!photos || !photos.length){ g.innerHTML = `<div class="small">${t("emptyGallery")}</div>`; return; }
+  photos.forEach(p=>{
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.src = p.url;
+    g.appendChild(img);
+  });
+}
+
+document.getElementById("reloadGalleryBtn").onclick = loadGallery;
+
+// LESSONS
+async function loadLessons(){
+  try{
+    const j = await api("lessons");
+    cacheLessons = (j.lessons||[]);
+    renderLessons(cacheLessons);
+  }catch{ toast(t("netErr"), true); }
+}
+
+function renderLessons(list){
+  const box = document.getElementById("lessonList");
+  const q = (document.getElementById("lessonSearch").value||"").toLowerCase();
+  box.innerHTML = "";
+  if(!list || !list.length){ box.innerHTML = `<div class="small">${t("emptyLessons")}</div>`; return; }
+
+  list
+    .filter(l=>String(l.title||"").toLowerCase().includes(q) || String(l.text||"").toLowerCase().includes(q) || String(l.date||"").toLowerCase().includes(q))
+    .forEach(l=>{
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = "<b>"+escapeHtml(l.title)+"</b><div class='small'>"+escapeHtml(l.date||"")+"</div><p>"+escapeHtml(l.text||"")+"</p>";
+      box.appendChild(div);
+    });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+// IMPORTANT FIX: do NOT re-fetch lessons on every keystroke.
+// Filter locally instead (stops constant network permission prompts).
+document.getElementById("lessonSearch").oninput = ()=> renderLessons(cacheLessons);
+document.getElementById("reloadLessonsBtn").onclick = loadLessons;
+
+// Initial load (once)
+applyLang();
+loadVerse(false);
+loadEvents();
+loadGallery();
+loadLessons();
+</script>
+</body>
+</html>
