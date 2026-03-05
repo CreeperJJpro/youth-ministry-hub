@@ -98,8 +98,9 @@
       <div class="small" id="adminNote"></div>
 
       <h3 id="admAddEvent">Add Event</h3>
-      <input id="adminEventDate" type="date" />
+      <input id="adminEventStart" type="datetime-local" />
       <input id="adminEventTitle" placeholder="Event title" />
+      <textarea id="adminEventDetails" placeholder="Details (optional)"></textarea>
       <button id="addEventBtn">Add Event</button>
 
       <h3 id="admAddLesson" style="margin-top:12px">Add Lesson</h3>
@@ -107,11 +108,6 @@
       <input id="adminLessonDate" type="date" />
       <textarea id="adminLessonText" placeholder="Lesson text"></textarea>
       <button id="addLessonBtn">Add Lesson</button>
-
-      <h3 id="admSetup" style="margin-top:12px">Admin Setup</h3>
-      <div class="small" id="admSetupNote" style="margin-bottom:6px"></div>
-      <input id="newAdminCode" inputmode="numeric" placeholder="New 6-digit passcode" />
-      <button id="setAdminCodeBtn">Set Passcode</button>
     </div>
   </section>
 
@@ -162,6 +158,7 @@
       <button id="doSignupBtn">Sign Up</button>
       <button id="closeAuthBtn">Close</button>
     </div>
+    <button id="forgotBtn" style="margin-top:8px">Forgot password?</button>
     <div class="small" id="authNote" style="margin-top:10px"></div>
   </div>
 </div>
@@ -172,7 +169,7 @@
     <h3 id="admVerifyTitle" style="margin:0 0 10px">Admin Verification</h3>
     <div class="small" id="admVerifyTip" style="margin-bottom:8px"></div>
     <label class="small" id="admCodeLabel" for="adminCode">Admin passcode</label>
-    <input id="adminCode" inputmode="numeric" placeholder="6-digit code" />
+    <input id="adminCode" inputmode="numeric" placeholder="4-10 digits" />
     <div class="row" style="margin-top:10px">
       <button id="verifyAdminBtn">Verify</button>
       <button id="cancelAdminBtn">Cancel</button>
@@ -181,14 +178,30 @@
   </div>
 </div>
 
+<!-- EVENT MODAL -->
+<div id="eventModal" class="hidden" style="position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:40;padding:16px">
+  <div class="card" style="max-width:460px;width:100%">
+    <h3 id="evtTitle" style="margin-top:0"></h3>
+    <div class="small" id="evtTime"></div>
+    <div class="small" id="evtDetails" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:12px">
+      <button id="evtToggleReminderBtn">Remind me</button>
+      <button id="evtCloseBtn">Close</button>
+    </div>
+    <div class="small" id="evtNote" style="margin-top:8px"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
-// Put your Apps Script Web App URL here
-const API = "https://script.google.com/macros/library/d/1xGdSt5SuXdWCpIo-sjjNX_UGEUQnHAI3iJZL5gk46W2_LmYFODW7aXyF/2";
+// Put your Apps Script Web App URL here (must end with /exec)
+const API = "https://script.google.com/macros/s/AKfycbwD1hvPkHTkyCyCT35goqwln4LF7MoPFRviVHxbaU6a4flO4bINu4_Z0Hx_8pwBD1C5kA/exec";
 
 let user = null;
 let cacheEvents = [], cacheGallery = [], cacheLessons = [];
+let myReminderSet = new Set();
+let currentEvent = null;
 
 const dict = {
   en: {
@@ -200,19 +213,22 @@ const dict = {
     galTitle:"Gallery", galHint:"Tap a photo to view it larger.",
     lesTitle:"Sunday Lessons", reload:"Reload", searchLessons:"Search lessons",
     authTitle:"Account", email:"Email", password:"Password", login:"Login", signup:"Sign Up", close:"Close", logout:"Logout",
+    forgot:"Forgot password?", recoverySent:"If that email exists, a recovery email was sent.",
     accountCreated:"Account created", badLogin:"Incorrect email or password",
-    netErr:"Network error. If you opened this file directly, host it (GitHub Pages) so the browser stops re-asking.",
+    netErr:"Network error. Make sure API is the Apps Script Web App /exec URL.",
     emptyEvents:"No events yet.", emptyGallery:"No photos yet.", emptyLessons:"No lessons yet.",
-    adminTitle:"Admin Panel", adminNote:"Admin tools are locked until you verify the admin passcode.",
+    adminTitle:"Admin Panel", adminNote:"Admins can add events + lessons.",
     admAddEvent:"Add Event", admAddLesson:"Add Lesson",
-    admSetup:"Admin Setup", admSetupNote:"Change the admin passcode (you'll need it next time you log in).", newCode:"New 6-digit passcode", setPasscode:"Set Passcode", passcodeUpdated:"Admin passcode updated.",
-    weakCode:"Passcode must be 6+ digits.",
-    
     admVerifyTitle:"Admin Verification",
-    admVerifyTip:"Enter the admin passcode to unlock admin tools.",
+    admVerifyTip:"Enter the admin passcode to unlock admin tools (4-10 digits).",
     admCodeLabel:"Admin passcode",
     verify:"Verify", cancel:"Cancel",
-    admVerifyNote:"This extra step protects the admin account even if someone gets the password."
+    admVerifyNote:"If your passcode in Sheets is blank, you won't be asked.",
+    details:"Details (optional)",
+    remind:"Remind me", removeRemind:"Remove notification",
+    loginToRemind:"Login to use reminders.",
+    remindOn:"You will get an email reminder at the event time.",
+    remindOff:"You will not get a reminder for this event."
   },
   es: {
     brand:"Centro de Jóvenes",
@@ -223,19 +239,22 @@ const dict = {
     galTitle:"Galería", galHint:"Toca una foto para verla grande.",
     lesTitle:"Lecciones (Domingo)", reload:"Recargar", searchLessons:"Buscar lecciones",
     authTitle:"Cuenta", email:"Email", password:"Contraseña", login:"Entrar", signup:"Crear", close:"Cerrar", logout:"Salir",
+    forgot:"¿Olvidaste tu contraseña?", recoverySent:"Si ese email existe, se envió un correo de recuperación.",
     accountCreated:"Cuenta creada", badLogin:"Email o contraseña incorrectos",
-    netErr:"Error de red. Si abriste este archivo directo, súbelo a un host (GitHub Pages) para que el navegador no siga preguntando.",
+    netErr:"Error de red. Asegúrate que API sea el Web App /exec de Apps Script.",
     emptyEvents:"Todavía no hay eventos.", emptyGallery:"Todavía no hay fotos.", emptyLessons:"Todavía no hay lecciones.",
-    adminTitle:"Panel de Admin", adminNote:"Las herramientas de admin se desbloquean solo con el passcode.",
+    adminTitle:"Panel de Admin", adminNote:"Admins pueden agregar eventos y lecciones.",
     admAddEvent:"Agregar evento", admAddLesson:"Agregar lección",
-    admSetup:"Configurar admin", admSetupNote:"Cambia el passcode de admin (lo necesitarás la próxima vez).", newCode:"Nuevo passcode (6 dígitos)", setPasscode:"Guardar passcode", passcodeUpdated:"Passcode de admin actualizado.",
-    weakCode:"El passcode debe tener 6+ dígitos.",
-    
     admVerifyTitle:"Verificación de Admin",
-    admVerifyTip:"Escribe el passcode de admin para desbloquear.",
+    admVerifyTip:"Escribe el passcode de admin (4-10 dígitos).",
     admCodeLabel:"Passcode de admin",
     verify:"Verificar", cancel:"Cancelar",
-    admVerifyNote:"Este paso extra protege la cuenta admin aunque alguien tenga la contraseña."
+    admVerifyNote:"Si el passcode en Sheets está vacío, no se pide.",
+    details:"Detalles (opcional)",
+    remind:"Recordarme", removeRemind:"Quitar notificación",
+    loginToRemind:"Inicia sesión para usar recordatorios.",
+    remindOn:"Recibirás un correo a la hora del evento.",
+    remindOff:"No recibirás recordatorio para este evento."
   }
 };
 function lang(){return localStorage.lang||"en"}
@@ -275,7 +294,6 @@ function applyLang(){
   document.getElementById("reloadCalendarBtn").textContent=t("reload");
   document.getElementById("reloadGalleryBtn").textContent=t("reload");
   document.getElementById("reloadLessonsBtn").textContent=t("reload");
-
   document.getElementById("lessonSearch").placeholder=t("searchLessons");
 
   document.getElementById("authTitle").textContent=t("authTitle");
@@ -288,15 +306,14 @@ function applyLang(){
   document.getElementById("closeAuthBtn").textContent=t("close");
   document.getElementById("loginBtn").textContent=t("login");
   document.getElementById("logoutBtn").textContent=t("logout");
+  document.getElementById("forgotBtn").textContent=t("forgot");
 
   document.getElementById("adminTitle").textContent=t("adminTitle");
   document.getElementById("adminNote").textContent=t("adminNote");
   document.getElementById("admAddEvent").textContent=t("admAddEvent");
   document.getElementById("admAddLesson").textContent=t("admAddLesson");
-  document.getElementById("admSetup").textContent=t("admSetup");
-  document.getElementById("admSetupNote").textContent=t("admSetupNote");
-  document.getElementById("newAdminCode").placeholder=t("newCode");
-  document.getElementById("setAdminCodeBtn").textContent=t("setPasscode");
+  document.getElementById("adminEventTitle").placeholder=(lang()==="es")?"Título del evento":"Event title";
+  document.getElementById("adminEventDetails").placeholder=t("details");
 
   document.getElementById("admVerifyTitle").textContent=t("admVerifyTitle");
   document.getElementById("admVerifyTip").textContent=t("admVerifyTip");
@@ -305,16 +322,15 @@ function applyLang(){
   document.getElementById("cancelAdminBtn").textContent=t("cancel");
   document.getElementById("admVerifyNote").textContent=t("admVerifyNote");
 
-  // rerender
+  document.getElementById("evtToggleReminderBtn").textContent = myReminderSet.has(currentEvent?.id)?t("removeRemind"):t("remind");
+
   renderEvents(cacheEvents); renderGallery(cacheGallery); renderLessons(cacheLessons);
 }
 
-// language selector
 const langSel=document.getElementById("lang");
 langSel.value=lang();
 langSel.onchange=()=>{localStorage.lang=langSel.value;applyLang();};
 
-// router
 function show(){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
   const id=location.hash.replace("#","")||"home";
@@ -324,7 +340,6 @@ function show(){
 window.addEventListener("hashchange",show);
 show();
 
-// API helper
 async function api(action,payload={}){
   const body=JSON.stringify({action,...payload});
   const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body,mode:"cors",redirect:"follow",cache:"no-store"});
@@ -360,15 +375,19 @@ document.getElementById("verseRefreshBtn").onclick=()=>loadVerse(true);
 // AUTH
 const authModal=document.getElementById("authModal");
 const adminModal=document.getElementById("adminModal");
+const eventModal=document.getElementById("eventModal");
 
 document.getElementById("loginBtn").onclick=()=>authModal.classList.remove("hidden");
 document.getElementById("closeAuthBtn").onclick=()=>authModal.classList.add("hidden");
+document.getElementById("forgotBtn").onclick=requestRecovery;
 
 document.getElementById("logoutBtn").onclick=()=>{
-  user=null;
+  user=null; myReminderSet=new Set();
   localStorage.removeItem("user");
   updateAuth();
 };
+
+function persistUser(){ localStorage.user=JSON.stringify(user); }
 
 function updateAuth(){
   const logged=!!user;
@@ -391,32 +410,43 @@ document.getElementById("doSignupBtn").onclick=signup;
 document.getElementById("verifyAdminBtn").onclick=verifyAdmin;
 document.getElementById("cancelAdminBtn").onclick=()=>{
   adminModal.classList.add("hidden");
-  // If they cancel, keep them logged in but admin stays locked
   if(user){ user.adminVerified=false; user.adminToken=null; persistUser(); updateAdminUI(); }
 };
 
-function persistUser(){ localStorage.user=JSON.stringify(user); }
+document.getElementById("evtCloseBtn").onclick=()=>eventModal.classList.add("hidden");
+document.getElementById("evtToggleReminderBtn").onclick=toggleReminder;
 
 async function login(){
   const email=document.getElementById("email").value;
   const pass=document.getElementById("password").value;
   try{
     const j=await api("login",{email,pass});
-    if(j.ok){
-      user=j.user;
-      // lock admin until passcode verified
-      if(user.role==="admin"){ user.adminVerified=false; user.adminToken=null; }
+    if(!j.ok) return toast(t("badLogin"),true);
+
+    user=j.user;
+    // token may be included if admin passcode is blank
+    if(user.role==="admin"){
+      user.adminVerified = !j.needsPasscode;
+      user.adminToken = j.adminToken || null;
       persistUser();
       updateAuth();
       authModal.classList.add("hidden");
-      if(user.role==="admin") adminModal.classList.remove("hidden");
-    }else toast(t("badLogin"),true);
+      if(j.needsPasscode) adminModal.classList.remove("hidden");
+      if(!j.needsPasscode) { await loadMyReminders(); toast("OK"); }
+      return;
+    }
+
+    persistUser();
+    updateAuth();
+    authModal.classList.add("hidden");
+    await loadMyReminders();
+    toast("OK");
   }catch{ toast(t("netErr"),true); }
 }
 
 async function verifyAdmin(){
   if(!user || user.role!=="admin") return;
-  const code=document.getElementById("adminCode").value;
+  const code=String(document.getElementById("adminCode").value||"").trim();
   try{
     const j=await api("verifyAdmin",{email:user.email,code});
     if(j.ok){
@@ -425,6 +455,7 @@ async function verifyAdmin(){
       persistUser();
       adminModal.classList.add("hidden");
       updateAdminUI();
+      await loadMyReminders();
       toast("OK");
     }else toast(String(j.error||"error"),true);
   }catch{ toast(t("netErr"),true); }
@@ -440,46 +471,89 @@ async function signup(){
   }catch{ toast(t("netErr"),true); }
 }
 
+async function requestRecovery(){
+  const email=document.getElementById("email").value;
+  if(!email) return toast("Email", true);
+  try{
+    const j=await api("requestRecovery",{email});
+    if(j.ok) toast(t("recoverySent"));
+    else toast(t("recoverySent"));
+  }catch{ toast(t("recoverySent")); }
+}
+
 if(localStorage.user){ try{ user=JSON.parse(localStorage.user); }catch{} }
 updateAuth();
 
 // EVENTS
 async function loadEvents(){
-  try{ const j=await api("events"); cacheEvents=j.events||[]; renderEvents(cacheEvents); }
+  try{ const j=await api("events"); cacheEvents=j.events||[]; renderEvents(cacheEvents); renderCalendar(cacheEvents); }
   catch{ toast(t("netErr"),true); }
+}
+function fmtWhen(iso){
+  const d=new Date(iso);
+  if(isNaN(d)) return iso||"";
+  return d.toLocaleString();
 }
 function renderEvents(events){
   const next=document.getElementById("nextEvents");
   next.innerHTML="";
   if(!events.length){ next.innerHTML=`<div class="small">${t("emptyEvents")}</div>`; return; }
-  events.slice(0,5).forEach(e=>{ const div=document.createElement("div"); div.className="small"; div.textContent=e.date+" - "+e.title; next.appendChild(div); });
-  renderCalendar(events);
+  events.slice(0,5).forEach(e=>{
+    const div=document.createElement("div");
+    div.className="small";
+    div.style.cursor="pointer";
+    div.textContent=fmtWhen(e.start)+" - "+e.title;
+    div.onclick=()=>openEvent(e);
+    next.appendChild(div);
+  });
 }
-function showEventDetails(e){
-  const m=document.createElement("div");
-  m.style.cssText="position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:40;padding:16px";
-  const box=document.createElement("div");
-  box.className="card";
-  box.style.maxWidth="420px";
-  box.style.width="100%";
-  box.innerHTML=`<h3>${escapeHtml(e.title)}</h3><div class='small'>${escapeHtml(e.date)}</div><button id='closeEvent'>${t("close")}</button>`;
-  m.appendChild(box); document.body.appendChild(m);
-  box.querySelector("#closeEvent").onclick=()=>m.remove();
-  m.onclick=(ev)=>{ if(ev.target===m) m.remove(); };
+
+function openEvent(e){
+  currentEvent = e;
+  document.getElementById("evtTitle").textContent = e.title||"";
+  document.getElementById("evtTime").textContent = fmtWhen(e.start);
+  document.getElementById("evtDetails").textContent = e.details||"";
+  document.getElementById("evtToggleReminderBtn").textContent = myReminderSet.has(e.id)?t("removeRemind"):t("remind");
+  document.getElementById("evtNote").textContent = user ? (myReminderSet.has(e.id)?t("remindOn"):t("remindOff")) : t("loginToRemind");
+  eventModal.classList.remove("hidden");
 }
+
+async function toggleReminder(){
+  if(!currentEvent) return;
+  if(!user) return toast(t("loginToRemind"), true);
+  const on = !myReminderSet.has(currentEvent.id);
+  try{
+    const j=await api("setReminder",{email:user.email,eventId:currentEvent.id,enabled:on});
+    if(j.ok){
+      if(on) myReminderSet.add(currentEvent.id); else myReminderSet.delete(currentEvent.id);
+      openEvent(currentEvent);
+      toast("OK");
+    }else toast(String(j.error||"error"), true);
+  }catch{ toast(t("netErr"),true); }
+}
+
+async function loadMyReminders(){
+  if(!user) return;
+  try{
+    const j=await api("myReminders",{email:user.email});
+    myReminderSet = new Set((j.eventIds||[]).map(String));
+  }catch{ myReminderSet = new Set(); }
+}
+
 function renderCalendar(events){
   const cal=document.getElementById("calendarGrid");
   cal.innerHTML="";
+  // simple month view placeholder: show 31 boxes with events by day-of-month
   for(let i=1;i<=31;i++){
     const d=document.createElement("div");
     d.className="day";
     d.textContent=i;
-    (events||[]).filter(ev=>{ const dt=new Date(ev.date); return !isNaN(dt)&&dt.getDate()===i; }).forEach(ev=>{
+    (events||[]).filter(ev=>{ const dt=new Date(ev.start); return !isNaN(dt)&&dt.getDate()===i; }).forEach(ev=>{
       const s=document.createElement("div");
       s.className="small";
       s.textContent=ev.title;
       s.style.cursor="pointer";
-      s.onclick=()=>showEventDetails(ev);
+      s.onclick=()=>openEvent(ev);
       d.appendChild(s);
     });
     cal.appendChild(d);
@@ -489,7 +563,7 @@ function renderCalendar(events){
 document.getElementById("reloadEventsBtn").onclick=loadEvents;
 document.getElementById("reloadCalendarBtn").onclick=loadEvents;
 
-// GALLERY (no captions)
+// GALLERY
 async function loadGallery(){
   try{ const j=await api("gallery"); cacheGallery=j.photos||[]; renderGallery(cacheGallery); }
   catch{ toast(t("netErr"),true); }
@@ -507,7 +581,7 @@ function renderGallery(photos){
 }
 function openPhotoModal(url){
   const m=document.createElement("div");
-  m.style.cssText="position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:40;padding:16px";
+  m.style.cssText="position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:45;padding:16px";
   const box=document.createElement("div");
   box.className="card"; box.style.maxWidth="760px"; box.style.width="100%";
   box.innerHTML=`<img src="${escapeHtml(url)}" alt="photo" style="width:100%;border-radius:10px;max-height:70vh;object-fit:contain;background:#0b1226"/>
@@ -545,15 +619,14 @@ document.getElementById("reloadLessonsBtn").onclick=loadLessons;
 document.getElementById("addEventBtn").onclick=addEvent;
 document.getElementById("addLessonBtn").onclick=addLesson;
 
-document.getElementById("setAdminCodeBtn").onclick=setAdminCode;
-
 async function addEvent(){
   if(!isAdminUnlocked()) return toast(t("admVerifyTip"), true);
-  const date=document.getElementById("adminEventDate").value;
+  const start=document.getElementById("adminEventStart").value;
   const title=document.getElementById("adminEventTitle").value;
+  const details=document.getElementById("adminEventDetails").value;
   try{
-    const j=await api("addEvent",{date,title,adminEmail:user.email,adminToken:user.adminToken});
-    if(j.ok){ document.getElementById("adminEventTitle").value=""; loadEvents(); toast("OK"); }
+    const j=await api("addEvent",{start,title,details,adminEmail:user.email,adminToken:user.adminToken});
+    if(j.ok){ document.getElementById("adminEventTitle").value=""; document.getElementById("adminEventDetails").value=""; loadEvents(); toast("OK"); }
     else toast(String(j.error||"error"),true);
   }catch{ toast(t("netErr"),true); }
 }
@@ -570,23 +643,13 @@ async function addLesson(){
   }catch{ toast(t("netErr"),true); }
 }
 
-async function setAdminCode(){
-  if(!isAdminUnlocked()) return toast(t("admVerifyTip"), true);
-  const code=String(document.getElementById("newAdminCode").value||"").trim();
-  if(code.length<6) return toast(t("weakCode"), true);
-  try{
-    const j=await api("setAdminCode",{code,adminEmail:user.email,adminToken:user.adminToken});
-    if(j.ok){ document.getElementById("newAdminCode").value=""; toast(t("passcodeUpdated")); }
-    else toast(String(j.error||"error"),true);
-  }catch{ toast(t("netErr"),true); }
-}
-
 // Init
 applyLang();
 loadVerse(false);
 loadEvents();
 loadGallery();
 loadLessons();
+if(user) loadMyReminders();
 </script>
 </body>
 </html>
