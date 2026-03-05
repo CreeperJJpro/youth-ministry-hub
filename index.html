@@ -5,23 +5,52 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Youth Ministry Hub</title>
 <style>
-  body{font-family:system-ui,Arial;margin:0;background:#0f172a;color:#fff}
-  header{background:#111827;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
-  nav a{color:#fff;margin:0 8px;text-decoration:none;font-size:14px;opacity:.9}
-  nav a:hover{opacity:1}
-  .container{max-width:1000px;margin:auto;padding:20px}
-  .card{background:#1f2937;padding:18px;border-radius:10px;margin-bottom:20px}
-  button,input,select,textarea{padding:8px;border-radius:6px;border:none;margin:4px 0}
-  button{cursor:pointer}
+  :root{--bg:#0f172a;--panel:#1f2937;--panel2:#111827;--muted:#9ca3af;--line:#334155;--danger:#ef4444}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,Arial;margin:0;background:var(--bg);color:#fff}
+  header{background:var(--panel2);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+  #brand{font-weight:700;letter-spacing:.2px}
+  nav{max-width:1000px;margin:auto;padding:10px 20px}
+  nav a{color:#fff;text-decoration:none;font-size:14px;opacity:.9;padding:10px 12px;border-radius:10px;display:inline-block}
+  nav a:hover{opacity:1;background:#0b1226}
+
+  .container{max-width:1000px;margin:auto;padding:16px 20px}
+  .card{background:var(--panel);padding:16px;border-radius:12px;margin-bottom:16px;border:1px solid rgba(51,65,85,.35)}
+  h2{font-size:18px}
+  h3{font-size:15px}
+  button,input,select,textarea{padding:10px 10px;border-radius:10px;border:1px solid rgba(51,65,85,.5);background:#0b1226;color:#fff;margin:4px 0;outline:none}
+  button{cursor:pointer;background:#111827}
+  button:hover{filter:brightness(1.06)}
+  input::placeholder,textarea::placeholder{color:#94a3b8}
+
   .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-  .gallery img{width:100%;border-radius:8px;background:#111827}
+  .gallery .ph{background:var(--panel2);border:1px solid rgba(51,65,85,.35);border-radius:12px;overflow:hidden}
+  .gallery img{width:100%;display:block;background:var(--panel2);aspect-ratio:1/1;object-fit:cover}
   .hidden{display:none}
+
   .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-  .day{background:#111827;padding:10px;border-radius:6px;font-size:12px;min-height:60px}
-  .small{font-size:12px;color:#9ca3af}
+  .day{background:var(--panel2);padding:8px;border-radius:10px;font-size:12px;min-height:70px;border:1px solid rgba(51,65,85,.35)}
+  .day .small{margin-top:4px}
+
+  .small{font-size:12px;color:var(--muted);line-height:1.35}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;background:#111827;border:1px solid #334155;padding:10px 12px;border-radius:10px;max-width:min(620px,calc(100% - 24px));display:none}
-  .toast.err{border-color:#ef4444}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;background:var(--panel2);border:1px solid var(--line);padding:10px 12px;border-radius:12px;max-width:min(620px,calc(100% - 24px));display:none;z-index:30}
+  .toast.err{border-color:var(--danger)}
+
+  /* Mobile-first improvements */
+  @media (max-width: 700px){
+    nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(17,24,39,.92);backdrop-filter:blur(10px);border-top:1px solid rgba(51,65,85,.5);padding:8px 10px;display:flex;justify-content:space-around;gap:6px;max-width:none}
+    nav a{flex:1;text-align:center;padding:12px 8px;font-size:13px;border-radius:12px}
+    .container{padding:14px 14px 80px}
+    header{padding:10px 12px}
+    #brand{font-size:14px}
+    button,input,select,textarea{width:100%}
+    .row > *{flex:1}
+    .gallery{grid-template-columns:repeat(2,1fr)}
+    .calendar{gap:5px}
+    .day{min-height:64px;padding:7px}
+  }
 </style>
 </head>
 <body>
@@ -45,11 +74,11 @@
 </nav>
 
 <div class="container">
-
   <section id="home" class="view">
     <div class="card">
       <h2 id="verseTitle">Daily Bible Verse</h2>
       <p id="verse" class="small"></p>
+      <p id="reflection" class="small"></p>
       <div class="row">
         <button id="verseRefreshBtn">Refresh</button>
         <span id="verseStamp" class="small"></span>
@@ -62,6 +91,22 @@
         <button id="reloadEventsBtn" class="small">Reload</button>
       </div>
       <div id="nextEvents"></div>
+    </div>
+
+    <div id="adminPanel" class="card hidden">
+      <h2 id="adminTitle">Admin Panel</h2>
+      <div class="small" id="adminNote"></div>
+
+      <h3 id="admAddEvent">Add Event</h3>
+      <input id="adminEventDate" type="date" />
+      <input id="adminEventTitle" placeholder="Event title" />
+      <button id="addEventBtn">Add Event</button>
+
+      <h3 id="admAddLesson" style="margin-top:12px">Add Lesson</h3>
+      <input id="adminLessonTitle" placeholder="Lesson title" />
+      <input id="adminLessonDate" type="date" />
+      <textarea id="adminLessonText" placeholder="Lesson text"></textarea>
+      <button id="addLessonBtn">Add Lesson</button>
     </div>
   </section>
 
@@ -83,6 +128,7 @@
         <button id="reloadGalleryBtn" class="small">Reload</button>
       </div>
       <div id="galleryGrid" class="gallery"></div>
+      <div class="small" id="galHint" style="margin-top:10px"></div>
     </div>
   </section>
 
@@ -96,12 +142,11 @@
       <div id="lessonList"></div>
     </div>
   </section>
-
 </div>
 
-<!-- AUTH MODAL -->
-<div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center">
-  <div style="background:#1f2937;padding:20px;border-radius:10px;width:320px">
+<!-- LOGIN MODAL -->
+<div id="authModal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:50">
+  <div style="background:#1f2937;padding:20px;border-radius:12px;width:320px;border:1px solid rgba(51,65,85,.5)">
     <h3 id="authTitle" style="margin:0 0 10px">Account</h3>
     <label class="small" id="emailLabel" for="email">Email</label>
     <input id="email" placeholder="Email" autocomplete="email" />
@@ -116,358 +161,399 @@
   </div>
 </div>
 
+<!-- ADMIN PASSCODE MODAL (2nd step) -->
+<div id="adminModal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:60">
+  <div style="background:#1f2937;padding:20px;border-radius:12px;width:320px;border:1px solid rgba(51,65,85,.5)">
+    <h3 id="admVerifyTitle" style="margin:0 0 10px">Admin Verification</h3>
+    <div class="small" id="admVerifyTip" style="margin-bottom:8px"></div>
+    <label class="small" id="admCodeLabel" for="adminCode">Admin passcode</label>
+    <input id="adminCode" inputmode="numeric" placeholder="6-digit code" />
+    <div class="row" style="margin-top:10px">
+      <button id="verifyAdminBtn">Verify</button>
+      <button id="cancelAdminBtn">Cancel</button>
+    </div>
+    <div class="small" id="admVerifyNote" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbztVO4XjrOl0nXFCa-ZoJuC6W2tLHC1_iVIT8y4TIjCbo2iapCbn0zihHINJu3ItwQS/exec";
-let user = null;
+// Put your Apps Script Web App URL here
+const API = "PASTE_GOOGLE_SCRIPT_URL_HERE";
 
-// In-memory caches (prevents constant network prompts / re-fetch)
-let cacheEvents = [];
-let cacheGallery = [];
-let cacheLessons = [];
+let user = null;
+let cacheEvents = [], cacheGallery = [], cacheLessons = [];
 
 const dict = {
   en: {
-    brand: "Youth Ministry Hub",
-    navHome: "Home",
-    navCalendar: "Calendar",
-    navGallery: "Gallery",
-    navLessons: "Lessons",
-    verseTitle: "Daily Bible Verse",
-    refresh: "Refresh",
-    updated: "Updated:",
-    upcomingTitle: "Upcoming Events",
-    calTitle: "Events Calendar",
-    galTitle: "Gallery",
-    lesTitle: "Sunday Lessons",
-    reload: "Reload",
-    searchLessons: "Search lessons",
-    authTitle: "Account",
-    email: "Email",
-    password: "Password",
-    login: "Login",
-    signup: "Sign Up",
-    close: "Close",
-    logout: "Logout",
-    accountCreated: "Account created",
-    badLogin: "Incorrect email or password",
-    netErr: "Network error. If you opened this file directly, try hosting it (GitHub Pages) so the browser stops re-asking.",
-    emptyEvents: "No events yet.",
-    emptyGallery: "No photos yet.",
-    emptyLessons: "No lessons yet.",
-    calHint: "Calendar shows event titles on their day (simple month view).",
-    authNote: "Your email is used for account recovery."
+    brand:"Youth Ministry Hub",
+    navHome:"Home", navCalendar:"Calendar", navGallery:"Gallery", navLessons:"Lessons",
+    verseTitle:"Daily Bible Verse", refresh:"Refresh", updated:"Updated:",
+    upcomingTitle:"Upcoming Events",
+    calTitle:"Events Calendar", calHint:"Tap an event title to see details.",
+    galTitle:"Gallery", galHint:"Tap a photo to view it larger.",
+    lesTitle:"Sunday Lessons", reload:"Reload", searchLessons:"Search lessons",
+    authTitle:"Account", email:"Email", password:"Password", login:"Login", signup:"Sign Up", close:"Close", logout:"Logout",
+    accountCreated:"Account created", badLogin:"Incorrect email or password",
+    netErr:"Network error. If you opened this file directly, host it (GitHub Pages) so the browser stops re-asking.",
+    emptyEvents:"No events yet.", emptyGallery:"No photos yet.", emptyLessons:"No lessons yet.",
+    adminTitle:"Admin Panel", adminNote:"Admin tools are locked until you verify the admin passcode.",
+    admAddEvent:"Add Event", admAddLesson:"Add Lesson",
+    admVerifyTitle:"Admin Verification",
+    admVerifyTip:"Enter the admin passcode to unlock admin tools.",
+    admCodeLabel:"Admin passcode",
+    verify:"Verify", cancel:"Cancel",
+    admVerifyNote:"This extra step protects the admin account even if someone gets the password."
   },
   es: {
-    brand: "Centro de Jóvenes",
-    navHome: "Inicio",
-    navCalendar: "Calendario",
-    navGallery: "Galería",
-    navLessons: "Lecciones",
-    verseTitle: "Versículo del día",
-    refresh: "Refrescar",
-    updated: "Actualizado:",
-    upcomingTitle: "Próximos eventos",
-    calTitle: "Calendario de eventos",
-    galTitle: "Galería",
-    lesTitle: "Lecciones (Domingo)",
-    reload: "Recargar",
-    searchLessons: "Buscar lecciones",
-    authTitle: "Cuenta",
-    email: "Email",
-    password: "Contraseña",
-    login: "Entrar",
-    signup: "Crear",
-    close: "Cerrar",
-    logout: "Salir",
-    accountCreated: "Cuenta creada",
-    badLogin: "Email o contraseña incorrectos",
-    netErr: "Error de red. Si abriste este archivo directo, súbelo a un host (GitHub Pages) para que el navegador no siga preguntando.",
-    emptyEvents: "Todavía no hay eventos.",
-    emptyGallery: "Todavía no hay fotos.",
-    emptyLessons: "Todavía no hay lecciones.",
-    calHint: "El calendario muestra títulos en su día (vista mensual simple).",
-    authNote: "Tu email se usa para recuperación de cuenta."
+    brand:"Centro de Jóvenes",
+    navHome:"Inicio", navCalendar:"Calendario", navGallery:"Galería", navLessons:"Lecciones",
+    verseTitle:"Versículo del día", refresh:"Refrescar", updated:"Actualizado:",
+    upcomingTitle:"Próximos eventos",
+    calTitle:"Calendario de eventos", calHint:"Toca un evento para ver detalles.",
+    galTitle:"Galería", galHint:"Toca una foto para verla grande.",
+    lesTitle:"Lecciones (Domingo)", reload:"Recargar", searchLessons:"Buscar lecciones",
+    authTitle:"Cuenta", email:"Email", password:"Contraseña", login:"Entrar", signup:"Crear", close:"Cerrar", logout:"Salir",
+    accountCreated:"Cuenta creada", badLogin:"Email o contraseña incorrectos",
+    netErr:"Error de red. Si abriste este archivo directo, súbelo a un host (GitHub Pages) para que el navegador no siga preguntando.",
+    emptyEvents:"Todavía no hay eventos.", emptyGallery:"Todavía no hay fotos.", emptyLessons:"Todavía no hay lecciones.",
+    adminTitle:"Panel de Admin", adminNote:"Las herramientas de admin se desbloquean solo con el passcode.",
+    admAddEvent:"Agregar evento", admAddLesson:"Agregar lección",
+    admVerifyTitle:"Verificación de Admin",
+    admVerifyTip:"Escribe el passcode de admin para desbloquear.",
+    admCodeLabel:"Passcode de admin",
+    verify:"Verificar", cancel:"Cancelar",
+    admVerifyNote:"Este paso extra protege la cuenta admin aunque alguien tenga la contraseña."
   }
 };
-
-function lang(){ return localStorage.lang || "en"; }
-function t(k){ return (dict[lang()] && dict[lang()][k]) || (dict.en[k]||k); }
+function lang(){return localStorage.lang||"en"}
+function t(k){return (dict[lang()]&&dict[lang()][k])||dict.en[k]||k}
 
 function toast(msg, err=false){
-  const el = document.getElementById("toast");
-  el.classList.toggle("err", !!err);
-  el.textContent = msg;
-  el.style.display = "block";
+  const el=document.getElementById("toast");
+  el.classList.toggle("err",!!err);
+  el.textContent=msg;
+  el.style.display="block";
   clearTimeout(toast._t);
-  toast._t = setTimeout(()=>{ el.style.display="none"; }, 3200);
+  toast._t=setTimeout(()=>el.style.display="none",3200);
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 }
 
 function applyLang(){
-  document.documentElement.lang = lang();
-  document.getElementById("brand").textContent = t("brand");
-  document.getElementById("navHome").textContent = t("navHome");
-  document.getElementById("navCalendar").textContent = t("navCalendar");
-  document.getElementById("navGallery").textContent = t("navGallery");
-  document.getElementById("navLessons").textContent = t("navLessons");
+  document.documentElement.lang=lang();
+  document.getElementById("brand").textContent=t("brand");
+  document.getElementById("navHome").textContent=t("navHome");
+  document.getElementById("navCalendar").textContent=t("navCalendar");
+  document.getElementById("navGallery").textContent=t("navGallery");
+  document.getElementById("navLessons").textContent=t("navLessons");
 
-  document.getElementById("verseTitle").textContent = t("verseTitle");
-  document.getElementById("verseRefreshBtn").textContent = t("refresh");
+  document.getElementById("verseTitle").textContent=t("verseTitle");
+  document.getElementById("verseRefreshBtn").textContent=t("refresh");
+  document.getElementById("upcomingTitle").textContent=t("upcomingTitle");
+  document.getElementById("calTitle").textContent=t("calTitle");
+  document.getElementById("calHint").textContent=t("calHint");
+  document.getElementById("galTitle").textContent=t("galTitle");
+  document.getElementById("galHint").textContent=t("galHint");
+  document.getElementById("lesTitle").textContent=t("lesTitle");
 
-  document.getElementById("upcomingTitle").textContent = t("upcomingTitle");
-  document.getElementById("calTitle").textContent = t("calTitle");
-  document.getElementById("galTitle").textContent = t("galTitle");
-  document.getElementById("lesTitle").textContent = t("lesTitle");
+  document.getElementById("reloadEventsBtn").textContent=t("reload");
+  document.getElementById("reloadCalendarBtn").textContent=t("reload");
+  document.getElementById("reloadGalleryBtn").textContent=t("reload");
+  document.getElementById("reloadLessonsBtn").textContent=t("reload");
 
-  document.getElementById("reloadEventsBtn").textContent = t("reload");
-  document.getElementById("reloadCalendarBtn").textContent = t("reload");
-  document.getElementById("reloadGalleryBtn").textContent = t("reload");
-  document.getElementById("reloadLessonsBtn").textContent = t("reload");
+  document.getElementById("lessonSearch").placeholder=t("searchLessons");
 
-  document.getElementById("lessonSearch").placeholder = t("searchLessons");
+  document.getElementById("authTitle").textContent=t("authTitle");
+  document.getElementById("emailLabel").textContent=t("email");
+  document.getElementById("email").placeholder=t("email");
+  document.getElementById("passLabel").textContent=t("password");
+  document.getElementById("password").placeholder=t("password");
+  document.getElementById("doLoginBtn").textContent=t("login");
+  document.getElementById("doSignupBtn").textContent=t("signup");
+  document.getElementById("closeAuthBtn").textContent=t("close");
+  document.getElementById("loginBtn").textContent=t("login");
+  document.getElementById("logoutBtn").textContent=t("logout");
 
-  document.getElementById("authTitle").textContent = t("authTitle");
-  document.getElementById("emailLabel").textContent = t("email");
-  document.getElementById("email").placeholder = t("email");
-  document.getElementById("passLabel").textContent = t("password");
-  document.getElementById("password").placeholder = t("password");
-  document.getElementById("doLoginBtn").textContent = t("login");
-  document.getElementById("doSignupBtn").textContent = t("signup");
-  document.getElementById("closeAuthBtn").textContent = t("close");
-  document.getElementById("loginBtn").textContent = t("login");
-  document.getElementById("logoutBtn").textContent = t("logout");
-  document.getElementById("authNote").textContent = t("authNote");
-  document.getElementById("calHint").textContent = t("calHint");
+  document.getElementById("adminTitle").textContent=t("adminTitle");
+  document.getElementById("adminNote").textContent=t("adminNote");
+  document.getElementById("admAddEvent").textContent=t("admAddEvent");
+  document.getElementById("admAddLesson").textContent=t("admAddLesson");
 
-  // re-render lists in current language (strings)
-  renderEvents(cacheEvents);
-  renderGallery(cacheGallery);
-  renderLessons(cacheLessons);
+  document.getElementById("admVerifyTitle").textContent=t("admVerifyTitle");
+  document.getElementById("admVerifyTip").textContent=t("admVerifyTip");
+  document.getElementById("admCodeLabel").textContent=t("admCodeLabel");
+  document.getElementById("verifyAdminBtn").textContent=t("verify");
+  document.getElementById("cancelAdminBtn").textContent=t("cancel");
+  document.getElementById("admVerifyNote").textContent=t("admVerifyNote");
+
+  // rerender
+  renderEvents(cacheEvents); renderGallery(cacheGallery); renderLessons(cacheLessons);
 }
 
 // language selector
-const langSel = document.getElementById("lang");
-langSel.value = lang();
-langSel.onchange = ()=>{ localStorage.lang = langSel.value; applyLang(); };
+const langSel=document.getElementById("lang");
+langSel.value=lang();
+langSel.onchange=()=>{localStorage.lang=langSel.value;applyLang();};
 
 // router
 function show(){
   document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
-  const id = location.hash.replace("#","") || "home";
-  const el = document.getElementById(id);
+  const id=location.hash.replace("#","")||"home";
+  const el=document.getElementById(id);
   if(el) el.classList.remove("hidden");
 }
-window.addEventListener("hashchange", show);
+window.addEventListener("hashchange",show);
 show();
 
-// Fetch helper (Apps Script likes text/plain JSON)
-async function api(action, payload={}){
-  const body = JSON.stringify({action, ...payload});
-  const r = await fetch(API, {
-    method: "POST",
-    headers: {"Content-Type":"text/plain;charset=utf-8"},
-    body,
-    mode: "cors",
-    redirect: "follow",
-    cache: "no-store"
-  });
-  const j = await r.json();
-  return j;
+// API helper
+async function api(action,payload={}){
+  const body=JSON.stringify({action,...payload});
+  const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body,mode:"cors",redirect:"follow",cache:"no-store"});
+  return await r.json();
 }
 
-// DAILY VERSE (cached once per day, no constant network prompts)
-function todayKey(){
-  const d=new Date();
-  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-}
-
+// DAILY VERSE
+function todayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 async function loadVerse(force=false){
-  const key = "verse:"+todayKey();
-  if(!force && localStorage.getItem(key)){
-    const v = JSON.parse(localStorage.getItem(key));
-    renderVerse(v);
-    return;
-  }
+  const key="verse:"+todayKey();
+  if(!force && localStorage.getItem(key)){renderVerse(JSON.parse(localStorage.getItem(key)));return;}
   try{
-    const r = await fetch("https://beta.ourmanna.com/api/v1/get/?format=json", {cache:"no-store"});
-    const j = await r.json();
-    const v = { text: j.verse.details.text, ref: j.verse.details.reference, ts: new Date().toISOString() };
-    localStorage.setItem(key, JSON.stringify(v));
+    const r=await fetch("https://beta.ourmanna.com/api/v1/get/?format=json",{cache:"no-store"});
+    const j=await r.json();
+    const v={text:j.verse.details.text,ref:j.verse.details.reference,ts:new Date().toISOString()};
+    localStorage.setItem(key,JSON.stringify(v));
     renderVerse(v);
-  }catch{
-    document.getElementById("verse").innerText = (lang()==="es")?"Error al cargar el versículo":"Error loading verse";
-  }
+  }catch{document.getElementById("verse").innerText=(lang()==="es")?"Error al cargar el versículo":"Error loading verse";}
 }
-
+function generateReflection(){
+  return (lang()==="es")
+    ? "Reflexión: Piensa en cómo este versículo se aplica a tu vida diaria y cómo puedes vivirlo hoy."
+    : "Reflection: Think about how this verse applies to your daily life and how you can live it out today.";
+}
 function renderVerse(v){
-  document.getElementById("verse").innerText = v.text + " — " + v.ref;
-  const d = new Date(v.ts);
-  document.getElementById("verseStamp").innerText = t("updated")+" "+d.toLocaleString();
+  document.getElementById("verse").innerText=v.text+" — "+v.ref;
+  document.getElementById("reflection").innerText=generateReflection();
+  document.getElementById("verseStamp").innerText=t("updated")+" "+new Date(v.ts).toLocaleString();
 }
 
-document.getElementById("verseRefreshBtn").onclick = ()=> loadVerse(true);
+document.getElementById("verseRefreshBtn").onclick=()=>loadVerse(true);
 
 // AUTH
-const modal = document.getElementById("authModal");
+const authModal=document.getElementById("authModal");
+const adminModal=document.getElementById("adminModal");
 
-document.getElementById("loginBtn").onclick = ()=> modal.classList.remove("hidden");
-document.getElementById("closeAuthBtn").onclick = ()=> modal.classList.add("hidden");
+document.getElementById("loginBtn").onclick=()=>authModal.classList.remove("hidden");
+document.getElementById("closeAuthBtn").onclick=()=>authModal.classList.add("hidden");
 
-document.getElementById("logoutBtn").onclick = ()=>{
+document.getElementById("logoutBtn").onclick=()=>{
   user=null;
   localStorage.removeItem("user");
   updateAuth();
 };
 
 function updateAuth(){
-  const logged = !!user;
-  document.getElementById("loginBtn").classList.toggle("hidden", logged);
-  document.getElementById("logoutBtn").classList.toggle("hidden", !logged);
+  const logged=!!user;
+  document.getElementById("loginBtn").classList.toggle("hidden",logged);
+  document.getElementById("logoutBtn").classList.toggle("hidden",!logged);
+  updateAdminUI();
 }
 
-document.getElementById("doLoginBtn").onclick = login;
-document.getElementById("doSignupBtn").onclick = signup;
+function isAdminUnlocked(){
+  return user && user.role==="admin" && user.adminVerified===true && user.adminToken;
+}
+
+function updateAdminUI(){
+  document.getElementById("adminPanel").classList.toggle("hidden", !isAdminUnlocked());
+}
+
+document.getElementById("doLoginBtn").onclick=login;
+document.getElementById("doSignupBtn").onclick=signup;
+
+document.getElementById("verifyAdminBtn").onclick=verifyAdmin;
+document.getElementById("cancelAdminBtn").onclick=()=>{
+  adminModal.classList.add("hidden");
+  // If they cancel, keep them logged in but admin stays locked
+  if(user){ user.adminVerified=false; user.adminToken=null; persistUser(); updateAdminUI(); }
+};
+
+function persistUser(){ localStorage.user=JSON.stringify(user); }
 
 async function login(){
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("password").value;
+  const email=document.getElementById("email").value;
+  const pass=document.getElementById("password").value;
   try{
-    const j = await api("login", {email, pass});
+    const j=await api("login",{email,pass});
     if(j.ok){
-      user = j.user;
-      localStorage.user = JSON.stringify(user);
+      user=j.user;
+      // lock admin until passcode verified
+      if(user.role==="admin"){ user.adminVerified=false; user.adminToken=null; }
+      persistUser();
       updateAuth();
-      modal.classList.add("hidden");
-    }else{
-      toast(t("badLogin"), true);
-    }
-  }catch{
-    toast(t("netErr"), true);
-  }
+      authModal.classList.add("hidden");
+      if(user.role==="admin") adminModal.classList.remove("hidden");
+    }else toast(t("badLogin"),true);
+  }catch{ toast(t("netErr"),true); }
+}
+
+async function verifyAdmin(){
+  if(!user || user.role!=="admin") return;
+  const code=document.getElementById("adminCode").value;
+  try{
+    const j=await api("verifyAdmin",{email:user.email,code});
+    if(j.ok){
+      user.adminVerified=true;
+      user.adminToken=j.adminToken;
+      persistUser();
+      adminModal.classList.add("hidden");
+      updateAdminUI();
+      toast("OK");
+    }else toast(String(j.error||"error"),true);
+  }catch{ toast(t("netErr"),true); }
 }
 
 async function signup(){
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("password").value;
+  const email=document.getElementById("email").value;
+  const pass=document.getElementById("password").value;
   try{
-    const j = await api("signup", {email, pass});
-    if(j.ok){ toast(t("accountCreated")); }
-    else{ toast(String(j.error||"error"), true); }
-  }catch{
-    toast(t("netErr"), true);
-  }
+    const j=await api("signup",{email,pass});
+    if(j.ok) toast(t("accountCreated"));
+    else toast(String(j.error||"error"),true);
+  }catch{ toast(t("netErr"),true); }
 }
 
-if(localStorage.user){ try{ user = JSON.parse(localStorage.user); }catch{} }
+if(localStorage.user){ try{ user=JSON.parse(localStorage.user); }catch{} }
 updateAuth();
 
 // EVENTS
 async function loadEvents(){
-  try{
-    const j = await api("events");
-    cacheEvents = (j.events||[]);
-    renderEvents(cacheEvents);
-  }catch{ toast(t("netErr"), true); }
+  try{ const j=await api("events"); cacheEvents=j.events||[]; renderEvents(cacheEvents); }
+  catch{ toast(t("netErr"),true); }
 }
-
 function renderEvents(events){
-  const next = document.getElementById("nextEvents");
-  next.innerHTML = "";
-  if(!events || !events.length){ next.innerHTML = `<div class="small">${t("emptyEvents")}</div>`; return; }
-
-  events.slice(0,5).forEach(e=>{
-    const div = document.createElement("div");
-    div.className = "small";
-    div.textContent = e.date + " - " + e.title;
-    next.appendChild(div);
-  });
+  const next=document.getElementById("nextEvents");
+  next.innerHTML="";
+  if(!events.length){ next.innerHTML=`<div class="small">${t("emptyEvents")}</div>`; return; }
+  events.slice(0,5).forEach(e=>{ const div=document.createElement("div"); div.className="small"; div.textContent=e.date+" - "+e.title; next.appendChild(div); });
   renderCalendar(events);
 }
-
+function showEventDetails(e){
+  const m=document.createElement("div");
+  m.style.cssText="position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:40;padding:16px";
+  const box=document.createElement("div");
+  box.className="card";
+  box.style.maxWidth="420px";
+  box.style.width="100%";
+  box.innerHTML=`<h3>${escapeHtml(e.title)}</h3><div class='small'>${escapeHtml(e.date)}</div><button id='closeEvent'>${t("close")}</button>`;
+  m.appendChild(box); document.body.appendChild(m);
+  box.querySelector("#closeEvent").onclick=()=>m.remove();
+  m.onclick=(ev)=>{ if(ev.target===m) m.remove(); };
+}
 function renderCalendar(events){
-  const cal = document.getElementById("calendarGrid");
-  cal.innerHTML = "";
-  // Simple month view: 1..31 (keeps code small)
+  const cal=document.getElementById("calendarGrid");
+  cal.innerHTML="";
   for(let i=1;i<=31;i++){
-    const d = document.createElement("div");
-    d.className = "day";
-    d.textContent = i;
-    (events||[]).filter(e=>{
-      const dt = new Date(e.date);
-      return !isNaN(dt) && dt.getDate()===i;
-    }).forEach(e=>{
-      const s = document.createElement("div");
-      s.className = "small";
-      s.textContent = e.title;
+    const d=document.createElement("div");
+    d.className="day";
+    d.textContent=i;
+    (events||[]).filter(ev=>{ const dt=new Date(ev.date); return !isNaN(dt)&&dt.getDate()===i; }).forEach(ev=>{
+      const s=document.createElement("div");
+      s.className="small";
+      s.textContent=ev.title;
+      s.style.cursor="pointer";
+      s.onclick=()=>showEventDetails(ev);
       d.appendChild(s);
     });
     cal.appendChild(d);
   }
 }
 
-document.getElementById("reloadEventsBtn").onclick = loadEvents;
-document.getElementById("reloadCalendarBtn").onclick = loadEvents;
+document.getElementById("reloadEventsBtn").onclick=loadEvents;
+document.getElementById("reloadCalendarBtn").onclick=loadEvents;
 
-// GALLERY
+// GALLERY (no captions)
 async function loadGallery(){
-  try{
-    const j = await api("gallery");
-    cacheGallery = (j.photos||[]);
-    renderGallery(cacheGallery);
-  }catch{ toast(t("netErr"), true); }
+  try{ const j=await api("gallery"); cacheGallery=j.photos||[]; renderGallery(cacheGallery); }
+  catch{ toast(t("netErr"),true); }
 }
-
 function renderGallery(photos){
-  const g = document.getElementById("galleryGrid");
-  g.innerHTML = "";
-  if(!photos || !photos.length){ g.innerHTML = `<div class="small">${t("emptyGallery")}</div>`; return; }
+  const g=document.getElementById("galleryGrid");
+  g.innerHTML="";
+  if(!photos.length){ g.innerHTML=`<div class="small">${t("emptyGallery")}</div>`; return; }
   photos.forEach(p=>{
-    const img = document.createElement("img");
-    img.loading = "lazy";
-    img.referrerPolicy = "no-referrer";
-    img.src = p.url;
-    g.appendChild(img);
+    const wrap=document.createElement("div"); wrap.className="ph"; wrap.style.cursor="pointer";
+    const img=document.createElement("img"); img.loading="lazy"; img.referrerPolicy="no-referrer"; img.src=p.url; img.alt="photo";
+    wrap.appendChild(img); g.appendChild(wrap);
+    wrap.onclick=()=>openPhotoModal(p.url);
   });
 }
+function openPhotoModal(url){
+  const m=document.createElement("div");
+  m.style.cssText="position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:40;padding:16px";
+  const box=document.createElement("div");
+  box.className="card"; box.style.maxWidth="760px"; box.style.width="100%";
+  box.innerHTML=`<img src="${escapeHtml(url)}" alt="photo" style="width:100%;border-radius:10px;max-height:70vh;object-fit:contain;background:#0b1226"/>
+                 <button id="closePhoto" style="margin-top:10px">${t("close")}</button>`;
+  m.appendChild(box); document.body.appendChild(m);
+  box.querySelector("#closePhoto").onclick=()=>m.remove();
+  m.onclick=(ev)=>{ if(ev.target===m) m.remove(); };
+}
 
-document.getElementById("reloadGalleryBtn").onclick = loadGallery;
+document.getElementById("reloadGalleryBtn").onclick=loadGallery;
 
 // LESSONS
 async function loadLessons(){
-  try{
-    const j = await api("lessons");
-    cacheLessons = (j.lessons||[]);
-    renderLessons(cacheLessons);
-  }catch{ toast(t("netErr"), true); }
+  try{ const j=await api("lessons"); cacheLessons=j.lessons||[]; renderLessons(cacheLessons); }
+  catch{ toast(t("netErr"),true); }
 }
-
 function renderLessons(list){
-  const box = document.getElementById("lessonList");
-  const q = (document.getElementById("lessonSearch").value||"").toLowerCase();
-  box.innerHTML = "";
-  if(!list || !list.length){ box.innerHTML = `<div class="small">${t("emptyLessons")}</div>`; return; }
-
-  list
-    .filter(l=>String(l.title||"").toLowerCase().includes(q) || String(l.text||"").toLowerCase().includes(q) || String(l.date||"").toLowerCase().includes(q))
-    .forEach(l=>{
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = "<b>"+escapeHtml(l.title)+"</b><div class='small'>"+escapeHtml(l.date||"")+"</div><p>"+escapeHtml(l.text||"")+"</p>";
-      box.appendChild(div);
-    });
+  const box=document.getElementById("lessonList");
+  const q=(document.getElementById("lessonSearch").value||"").toLowerCase();
+  box.innerHTML="";
+  if(!list.length){ box.innerHTML=`<div class="small">${t("emptyLessons")}</div>`; return; }
+  list.filter(l=>String(l.title||"").toLowerCase().includes(q)||String(l.text||"").toLowerCase().includes(q)||String(l.date||"").toLowerCase().includes(q))
+      .forEach(l=>{
+        const div=document.createElement("div");
+        div.className="card";
+        div.innerHTML=`<b>${escapeHtml(l.title||"")}</b><div class='small'>${escapeHtml(l.date||"")}</div><p>${escapeHtml(l.text||"")}</p>`;
+        box.appendChild(div);
+      });
 }
 
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+document.getElementById("lessonSearch").oninput=()=>renderLessons(cacheLessons);
+document.getElementById("reloadLessonsBtn").onclick=loadLessons;
+
+// ADMIN actions (require adminToken)
+document.getElementById("addEventBtn").onclick=addEvent;
+document.getElementById("addLessonBtn").onclick=addLesson;
+
+async function addEvent(){
+  if(!isAdminUnlocked()) return toast(t("admVerifyTip"), true);
+  const date=document.getElementById("adminEventDate").value;
+  const title=document.getElementById("adminEventTitle").value;
+  try{
+    const j=await api("addEvent",{date,title,adminEmail:user.email,adminToken:user.adminToken});
+    if(j.ok){ document.getElementById("adminEventTitle").value=""; loadEvents(); toast("OK"); }
+    else toast(String(j.error||"error"),true);
+  }catch{ toast(t("netErr"),true); }
 }
 
-// IMPORTANT FIX: do NOT re-fetch lessons on every keystroke.
-// Filter locally instead (stops constant network permission prompts).
-document.getElementById("lessonSearch").oninput = ()=> renderLessons(cacheLessons);
-document.getElementById("reloadLessonsBtn").onclick = loadLessons;
+async function addLesson(){
+  if(!isAdminUnlocked()) return toast(t("admVerifyTip"), true);
+  const title=document.getElementById("adminLessonTitle").value;
+  const date=document.getElementById("adminLessonDate").value;
+  const text=document.getElementById("adminLessonText").value;
+  try{
+    const j=await api("addLesson",{title,date,text,adminEmail:user.email,adminToken:user.adminToken});
+    if(j.ok){ document.getElementById("adminLessonTitle").value=""; document.getElementById("adminLessonText").value=""; loadLessons(); toast("OK"); }
+    else toast(String(j.error||"error"),true);
+  }catch{ toast(t("netErr"),true); }
+}
 
-// Initial load (once)
+// Init
 applyLang();
 loadVerse(false);
 loadEvents();
